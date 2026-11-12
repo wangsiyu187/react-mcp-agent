@@ -1,60 +1,149 @@
-# 第九次作业：MCP 招聘查询系统
+# ReAct MCP Agent
 
-暨南大学《智能软件开发技术》第九次作业，主题为 **MCP（Model Context Protocol）**。
+> 基于 **Python + PyQt6 + ReAct + Model Context Protocol (MCP)** 的桌面 AI Agent 应用，支持大语言模型对话、工具发现与调用，以及可视化交互。
 
-本项目在第五次作业「招聘信息管理系统」（PyQt6 + SQLite）的基础上，把招聘查询功能封装为基于 **官方 MCP Python SDK v2**、**STDIO 通信** 的 MCP 服务，并接入大模型（OpenAI 兼容接口，默认 DeepSeek）完成自然语言招聘查询。
+## 项目简介
 
-## 完整链路
+ReAct MCP Agent 是一个面向 **LLM 工具调用与应用集成** 的桌面端实践项目。它将大语言模型与 MCP 工具服务连接起来，使模型能够根据用户请求选择可用工具、执行操作，并结合工具结果继续生成回复。
 
+项目重点在于打通从 **模型配置、对话交互、工具发现、工具调用到执行结果展示** 的完整流程，并通过模块化设计，将界面、Agent 逻辑和 MCP 工具服务解耦，便于扩展新的工具与业务场景。
+
+## 核心功能
+
+- **可视化对话界面**：基于 PyQt6 构建桌面 UI，提供对话与执行反馈。
+- **灵活的模型配置**：支持配置模型名称、API Key、接口地址与系统提示词；兼容项目接入的 DeepSeek / OpenAI 风格接口。
+- **ReAct 工具调用循环**：根据模型返回的工具调用请求执行操作，并将结果反馈给模型，形成多步交互流程。
+- **MCP 工具集成**：通过 MCP 客户端连接本地 STDIO 工具服务，获取工具清单并调用已注册工具。
+- **业务工具扩展**：将业务逻辑封装为独立工具服务；当前项目以职位信息相关功能作为工具接入示例。
+- **异步任务执行**：将模型请求与工具调用放在工作线程中处理，减少长耗时操作对桌面交互的影响。
+- **功能验证**：提供测试代码，用于验证工具注册、模块交互及主要执行流程。
+
+## 技术栈
+
+| 类别 | 使用技术 |
+| --- | --- |
+| 开发语言 | Python |
+| 图形界面 | PyQt6 |
+| Agent 模式 | ReAct、LLM Function Calling |
+| 工具协议 | Model Context Protocol（MCP），STDIO 通信 |
+| 模型接口 | DeepSeek / OpenAI 兼容 API（以项目配置为准） |
+| 工程工具 | Git、pytest（测试环境） |
+
+## 系统架构
+
+```mermaid
+flowchart TD
+    A[PyQt6 桌面界面] --> B[Agent 工作线程]
+    B --> C[LLM Agent / ReAct 循环]
+    C --> D[模型 API]
+    C --> E[MCP Client]
+    E <-->|STDIO| F[MCP Server]
+    F --> G[业务工具 / 职位信息服务]
+    G --> F
+    F --> E
+    E --> C
+    C --> B
+    B --> A
 ```
-用户自然语言
-   → 大模型（OpenAI 兼容接口）返回 tool_calls
-   → MCP Client（STDIO 子进程，mcp_client.py）
-   → MCP Server（mcp_server.py，MCPServer v2）
-   → job_service.py（复用 models / database / matcher）
-   → SQLite（job_data.db）
-   → 真实岗位数据 → 大模型组织自然语言回答 → PyQt6 界面显示
+
+**主要模块职责：**
+
+- **UI 层**：接收用户输入、展示模型回复和执行状态。
+- **Agent 层**：管理提示词与模型请求，判断并处理工具调用，组织多轮执行。
+- **MCP 层**：负责工具注册、发现、调用与结果返回，降低模型与业务代码的耦合。
+- **业务层**：通过独立服务暴露可复用的业务能力。
+
+## 快速开始
+
+### 1. 获取项目
+
+```bash
+git clone https://github.com/wangsiyu187/react-mcp-agent.git
+cd react-mcp-agent
 ```
 
-## 目录结构
+### 2. 安装依赖
 
-| 文件 | 说明 |
-|---|---|
-| `models.py` / `database.py` / `matcher.py` / `csv_io.py` | 第五次作业业务层（复用） |
-| `dialogs.py` / `main_window.py` / `main.py` | PyQt6 界面（改造为三标签页） |
-| `job_service.py` | 招聘查询服务层（无 Qt 依赖） |
-| `mcp_server.py` | MCP Server（SDK v2 `MCPServer`，STDIO） |
-| `mcp_client.py` | MCP Client（SDK v2 `Client` + `StdioServerParameters`） |
-| `llm_agent.py` | 大模型 Agent：工具发现 + 工具调用循环 |
-| `agent_worker.py` | 后台线程 + Qt 信号（不阻塞主线程） |
-| `system_prompt.py` | 招聘查询 Agent 系统提示词 |
-| `config.py` | 大模型配置（仅会话内保留 API Key） |
-| `tests/` | 自动化测试 |
+推荐使用虚拟环境：
 
-## 安装与运行
+```bash
+python -m venv .venv
+```
+
+Windows（PowerShell）：
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+随后安装依赖：
 
 ```bash
 pip install -r requirements.txt
-
-# 启动 PyQt6 图形界面
-python main.py
-
-# 单独启动 MCP Server（STDIO，供 MCP 客户端连接）
-python mcp_server.py
 ```
 
-在界面的「大模型配置」标签页填写 API Base URL / API Key / 模型名称（默认 DeepSeek `deepseek-v4-pro`），点击「保存配置」，再到「AI 智能招聘查询」标签页输入自然语言即可。
+### 3. 配置模型
 
-## 测试
+启动应用后，根据界面或项目提供的配置方式填写：
+
+- **API Key**：对应模型服务的访问密钥。
+- **Base URL**：模型服务的 API 地址。
+- **Model**：实际使用的模型名称。
+- **System Prompt**：用于定义 Agent 的行为与任务边界。
+
+> 配置项及可用模型以当前源码为准。请使用自己的 API Key，并避免将真实密钥写入公开仓库。
+
+### 4. 运行程序
 
 ```bash
-python -X utf8 -m pytest tests -v
+python main.py
 ```
 
-测试使用临时 SQLite 数据库，不会修改正式 `job_data.db`。大模型响应使用 Mock，避免消耗真实 API Token；另提供真实 API 的人工验收流程（见 `system.md`）。
+通过桌面界面发起对话；当请求匹配已注册的 MCP 工具能力时，Agent 可根据模型输出调用相应工具，并结合返回结果继续回复。
 
-## 说明
+### 5. 运行测试
 
-- API Key 仅保留在当前运行会话内，不写入任何文件。
-- MCP 通信为真实 STDIO（JSON-RPC），非普通函数调用。
-- 数据库信息可能过时，查询结果以官方最新公告为准。
+如已安装测试依赖，可执行：
+
+```bash
+python -m pytest -q
+```
+
+## 运行流程
+
+1. 用户在 PyQt6 界面输入问题或任务。
+2. Agent 向配置的大语言模型发起请求，并提供可用工具描述。
+3. 当模型返回工具调用请求时，MCP Client 将请求转发至 MCP Server。
+4. MCP Server 执行对应业务工具并返回结果。
+5. Agent 将工具结果加入上下文，继续生成最终回复。
+6. UI 展示回复或执行反馈。
+
+## 设计要点
+
+- **模块解耦**：模型调用、界面交互、工具协议和业务逻辑分层，方便维护与迭代。
+- **工具可扩展**：新增能力时优先封装为 MCP 工具，减少对 Agent 主循环的修改。
+- **模型配置灵活**：将模型和接口参数与业务逻辑分离，便于切换支持的服务。
+- **可测试性**：将工具调用与主要流程拆分为独立模块，便于进行功能测试和问题定位。
+
+## 项目展示
+
+建议在此处加入实际运行截图或 GIF，包括：
+
+- 主界面及模型配置；
+- Agent 触发 MCP 工具调用的过程；
+- 工具执行后的回复结果。
+
+> 截图请遮盖 API Key、个人信息及敏感业务数据。
+
+## 注意事项
+
+- 本项目主要用于探索桌面端 AI Agent 与 MCP 工具集成，尚不代表生产环境部署方案。
+- 使用前需配置有效的模型服务，相关请求可能产生 API 调用费用。
+- 外部工具的执行权限取决于实际注册的 MCP 服务，请在可信环境中运行。
+- 不要将 `.env`、真实密钥、个人数据库或其他敏感配置提交至公开仓库。
+
+## 后续方向
+
+- 增加更多独立 MCP 工具与业务场景。
+- 完善执行过程展示、错误处理和日志记录。
+- 补充测试覆盖率、运行演示与部署说明。
