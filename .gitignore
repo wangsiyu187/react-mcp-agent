@@ -1,0 +1,27 @@
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Local data and secrets
+.env
+.env.*
+job_data.db
+*.log
+
+# Local environments and secrets
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+config.json
+*.db
+logs/
+*.log
+.trae/
+.idea/

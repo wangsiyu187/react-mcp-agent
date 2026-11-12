@@ -1,0 +1,4 @@
+PyQt6>=6.5
+mcp[cli]>=2,<3
+openai>=1.0
+pytest>=8
